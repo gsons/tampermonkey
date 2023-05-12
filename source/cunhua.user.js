@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         cunhua
 // @namespace    https://cunhua.click/
-// @version      0.3
+// @version      0.4
 // @description  cunhua
 // @author       You
 // @match        https://cunhua.click/*
@@ -48,11 +48,11 @@
         // return urls;
     }
 
-    $('.threadlist a.z').each(async function (index, vo) {
-        let container=$(this).parent().append(`<div class="img-list" style="width: 100%; height:200px;padding-top:10px;overflow-x: scroll; overflow-y: hidden; white-space: nowrap;"></div>`);
+    $('.threadlist li>a:first-child').each(async function (index, vo) {
+        let container=$(this).parent().append(`<div class="img-list" style="width: 100%; height:200px;padding-top:10px;overflow-x: auto; overflow-y: hidden; white-space: nowrap;"></div>`);
         let url = $(this).attr('href');
         const links = await get_images('https://' + location.host + '/' + url);
-        //console.log(url, index, links);
+        console.log(url, index, links);
         let count=links.length;
         $(this).find('p').append(`<b>[${count}P]</b>`);
         links.slice(0, 2).forEach((link) => {
