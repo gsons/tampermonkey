@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         cunhua
 // @namespace    https://cunhua.click/
-// @version      0.2
+// @version      0.3
 // @description  cunhua
 // @author       You
 // @match        https://cunhua.click/*
@@ -38,8 +38,8 @@
         const real_url = await fetch_real_url(url);
         const resp = await fetch(real_url);
         const html = await resp.text();
-        var regex = /<img[^>]+id="aimg_\d+"[^>]*>/g;
-        var matches = html.match(regex);
+        let regex = /<img[^>]+id="aimg_\d+"[^>]*>/g;
+        let matches = html.match(regex);
         return matches.map((v) => { return $(v).attr('src'); });
         // const urls = $(html).find('.message a>img')
         //     .map(function () {
@@ -49,13 +49,14 @@
     }
 
     $('.threadlist a.z').each(async function (index, vo) {
-        var url = $(this).attr('href');
+        let container=$(this).parent().append(`<div class="img-list" style="width: 100%; height:200px;padding-top:10px;overflow-x: scroll; overflow-y: hidden; white-space: nowrap;"></div>`);
+        let url = $(this).attr('href');
         const links = await get_images('https://' + location.host + '/' + url);
-        console.log(url, index, links);
+        //console.log(url, index, links);
         let count=links.length;
         $(this).find('p').append(`<b>[${count}P]</b>`);
-        links.slice(0, 4).forEach((link) => {
-            $(this).append('<img style="max-width:140px;max-height:240px;padding:5px;" src="' + link + '">');
+        links.slice(0, 2).forEach((link) => {
+            container.find(".img-list").append(`<img src="${link}" style="height: 200px; display: inline-block;padding:0 5px"/>`);
         });
     });
 })();
