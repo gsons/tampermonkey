@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         cunhua
 // @namespace    https://cunhua.click/
-// @version      0.1
+// @version      0.2
 // @description  cunhua
 // @author       You
 // @match        https://cunhua.click/*
+// @match        https://www.cunhua.click/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=cunhua.click
 // @grant        none
 // ==/UserScript==
@@ -32,7 +33,7 @@
         return _url;
     }
 
-    async function getImages(url) {
+    async function get_images(url) {
         //console.log(url);
         const real_url = await fetch_real_url(url);
         const resp = await fetch(real_url);
@@ -49,10 +50,12 @@
 
     $('.threadlist a.z').each(async function (index, vo) {
         var url = $(this).attr('href');
-        const links = await getImages('https://' + location.host + '/' + url);
+        const links = await get_images('https://' + location.host + '/' + url);
         console.log(url, index, links);
+        let count=links.length;
+        $(this).find('p').append(`<b>[${count}P]</b>`);
         links.slice(0, 4).forEach((link) => {
-            $(this).parent().append('<img style="max-width:140px;max-height:240px;padding:5px;" src="' + link + '">');
+            $(this).append('<img style="max-width:140px;max-height:240px;padding:5px;" src="' + link + '">');
         });
     });
 })();
