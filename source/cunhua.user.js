@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         cunhua
 // @namespace    https://cunhua.click/
-// @version      0.4
+// @version      0.5
 // @description  cunhua
 // @author       You
 // @match        https://cunhua.click/*
@@ -48,15 +48,61 @@
         // return urls;
     }
 
+    function preLoadImg(id, url) {
+        console.log("preLoadImg",id,url);
+        var img = new Image();
+        img.src = url;
+        img.onload = function () {
+            document.getElementById(id).src = url;
+        };
+        img.onerror = function () {
+            document.getElementById(id).src = "https://www.cunhua.click/template/bygsjw/image/logo.png";
+        }
+    }
+
     $('.threadlist li>a:first-child').each(async function (index, vo) {
-        let container=$(this).parent().append(`<div class="img-list" style="width: 100%; height:200px;padding-top:10px;overflow-x: auto; overflow-y: hidden; white-space: nowrap;"></div>`);
+        let container = $(this).parent().append(`<div class="img-list" style="width: 100%; height:200px;padding-top:10px;overflow-x: auto; overflow-y: hidden; white-space: nowrap;"></div>`);
+        const defaultImg = "https://jsonp.gitee.io/img/load.gif";
+        let i = 0;
+        while (i++ < 2) {
+            container.find(".img-list").append(`<img src="${defaultImg}" id="id_${index}_img_${i - 1}" style="height: 200px; display: inline-block;padding:0 5px"/>`);
+        }
         let url = $(this).attr('href');
         const links = await get_images('https://' + location.host + '/' + url);
         console.log(url, index, links);
-        let count=links.length;
+        let count = links.length;
         $(this).find('p').append(`<b>[${count}P]</b>`);
-        links.slice(0, 2).forEach((link) => {
-            container.find(".img-list").append(`<img src="${link}" style="height: 200px; display: inline-block;padding:0 5px"/>`);
+        links.slice(0, 2).forEach((link, _index) => {
+            const dom_id = `id_${index}_img_${_index}`;
+            $(`#${dom_id}`).attr('data-src', link);
         });
+        lazyLoad(); 
     });
+
+    function debounce(fn, delay) {
+        let timer;
+        return function() {
+          const context = this;
+          const args = arguments;
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            fn.apply(context, args);
+          }, delay);
+        };
+      }
+
+    function lazyLoad() {
+        const lazyImages = document.querySelectorAll('img[data-src]');
+        lazyImages.forEach(img => {
+            const imgTop = img.getBoundingClientRect().top;
+            const imgBottom = img.getBoundingClientRect().bottom;
+            const winTop = window.innerHeight;
+            if (imgTop < winTop && imgBottom >= 0) {
+                preLoadImg(img.id,img.dataset.src);
+                img.removeAttribute('data-src');
+            }
+        });
+    }
+    const lazyLoadDebounced = debounce(lazyLoad, 100);
+    window.addEventListener('scroll', lazyLoadDebounced);
 })();
