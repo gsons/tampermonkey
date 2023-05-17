@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         cunhua
 // @namespace    https://cunhua.click/
-// @version      1.0
+// @version      1.1
 // @description  cunhua
 // @author       You
 // @require      https://cunhua.click/template/bygsjw_sj/image/jquery.min.js
