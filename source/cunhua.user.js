@@ -4,14 +4,66 @@
 // @version      1.0
 // @description  cunhua
 // @author       You
+// @require      https://cunhua.click/template/bygsjw_sj/image/jquery.min.js
+// @connect      cunhua.click
 // @match        https://cunhua.click/*
 // @match        https://www.cunhua.click/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=cunhua.click
-// @grant        none
+// @grant       GM_xmlhttpRequest
 // ==/UserScript==
 
 (function () {
     'use strict';
+
+    function GMFetch(url, options = {}) {
+        return new Promise((resolve, reject) => {
+            const { method = 'GET', headers = {}, data = null } = options;
+            const requestOptions = {
+                method: method.toUpperCase(),
+                headers: headers,
+                url: url,
+                onload: (response) => {
+                    if (response.status >= 200 && response.status < 400) {
+                        resolve(response.responseText);
+                    } else {
+                        reject(response.statusText);
+                    }
+                },
+                onerror: (error) => {
+                    reject(error);
+                },
+            };
+            if (method.toUpperCase() === 'POST') {
+                requestOptions.data = data;
+            }
+            GM_xmlhttpRequest(requestOptions);
+        });
+    }
+
+    function xmlfetch(url, options = {}) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(xhr.responseText);
+                    } else {
+                        reject(new Error(xhr.statusText));
+                    }
+                }
+            };
+
+            xhr.open(options.method || 'GET', url);
+
+            for (const header in options.headers || {}) {
+                xhr.setRequestHeader(header, options.headers[header]);
+            }
+
+            xhr.send(options.body);
+        });
+    }
+
 
     async function fetch_real_url(url) {
         const resp = await fetch(url);
@@ -29,18 +81,33 @@
         func();
         MuURL = MuURL ? MuURL : (MuObj.href || MuObj);
         let [, _dsign] = /_dsign=(.*)/gm.exec(MuURL);
-        const _url = url + '&_dsign=' + _dsign;
+        const sign = url.includes('?') ? '&' : '?';
+        const _url = `${url}${sign}_dsign=${_dsign}`;
         return _url;
     }
 
     async function get_images(url) {
         //console.log(url);
         const real_url = await fetch_real_url(url);
-        const resp = await fetch(real_url);
+        const mobileOpt = { headers: { "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1 Edg/113.0.0.0" } };
+        const pcOpt = {};
+        const opt = url.includes('mobile=') ? mobileOpt : pcOpt;
+        const resp = await fetch(real_url, opt);
         const html = await resp.text();
         let regex = /<img[^>]+id="aimg_\d+"[^>]*>/g;
         let matches = html.match(regex);
-        return matches.map((v) => { return $(v).attr('src'); });
+        //console.log(html);
+        if (matches) {
+            return matches.map((htmlString) => {
+                const regex = /<img.*?src=["'](.*?)["']/;
+                const [, src] = regex.exec(htmlString) ?? [];
+                const regex2 = /<img.*?zoomfile=["'](.*?)["']/ ?? [];
+                const [, zoomfile] = regex.exec(htmlString);
+                return zoomfile ? zoomfile : src;
+            });
+        } else {
+            return [];
+        }
         // const urls = $(html).find('.message a>img')
         //     .map(function () {
         //         return $(this).attr('src');
@@ -49,60 +116,65 @@
     }
 
     function preLoadImg(id, url) {
-        console.log("preLoadImg",id,url);
+        console.log("preLoadImg", id, url);
         var img = new Image();
         img.src = url;
         img.onload = function () {
             document.getElementById(id).src = url;
         };
         img.onerror = function () {
-            document.getElementById(id).src = "https://www.cunhua.click/template/bygsjw/image/logo.png";
+            document.getElementById(id).src = "https://jsonp.gitee.io/video/img/404.png";
         }
     }
 
-    $('.threadlist li>a:first-child').each(async function (index, vo) {
-        let container = $(this).parent().append(`<div class="img-list" style="width: 100%; height:200px;padding-top:10px;overflow-x: auto; overflow-y: hidden; white-space: nowrap;"></div>`);
-        const defaultImg = "https://jsonp.gitee.io/img/load.gif";
+    $('.threadlist li>a:first-child,#favorite_ul li>a[target="_blank"],#threadlist li.pbw h3>a,table[summary="主题付费"] tr td>a[target="_blank"]').each(async function (index, vo) {
+        let container = $(this).parent().append(`<div class="img-list" style="width: 100vw; height:200px;padding-top:10px;overflow-x: auto; overflow-y: hidden; white-space: nowrap;"></div>`);
+        const defaultImg = "https://jsonp.gitee.io/video/img/load.gif";
         let i = 0;
         while (i++ < 2) {
             container.find(".img-list").append(`<img src="${defaultImg}" id="id_${index}_img_${i - 1}" style="height: 200px; display: inline-block;padding:0 5px"/>`);
         }
         let url = $(this).attr('href');
-        const links = await get_images('https://' + location.host + '/' + url);
-        console.log(url, index, links);
-        let count = links.length;
-        $(this).find('p').append(`<b>[${count}P]</b>`);
-        links.slice(0, 2).forEach((link, _index) => {
-            const dom_id = `id_${index}_img_${_index}`;
-            $(`#${dom_id}`).attr('data-src', link);
-        });
-        lazyLoad(); 
+        url = 'https://' + location.host + '/' + url;
+        container.find(".img-list").attr("data-href", url).attr('data-index', index);
+        lazyLoad();
     });
 
     function debounce(fn, delay) {
         let timer;
-        return function() {
-          const context = this;
-          const args = arguments;
-          clearTimeout(timer);
-          timer = setTimeout(() => {
-            fn.apply(context, args);
-          }, delay);
+        return function () {
+            const context = this;
+            const args = arguments;
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                fn.apply(context, args);
+            }, delay);
         };
-      }
+    }
 
     function lazyLoad() {
-        const lazyImages = document.querySelectorAll('img[data-src]');
-        lazyImages.forEach(img => {
-            const imgTop = img.getBoundingClientRect().top;
-            const imgBottom = img.getBoundingClientRect().bottom;
+        const lazyDivs = $(".img-list[data-href]");
+        lazyDivs.each(async (i, div) => {
+            const divTop = div.getBoundingClientRect().top;
+            const divBottom = div.getBoundingClientRect().bottom;
             const winTop = window.innerHeight;
-            if (imgTop < winTop && imgBottom >= 0) {
-                preLoadImg(img.id,img.dataset.src);
-                img.removeAttribute('data-src');
+            if (divTop < winTop && divBottom > 0) {
+                const href = $(div).data('href');
+                const index = $(div).data('index');
+                $(div).removeAttr("data-href");
+                const links = await get_images(href);
+                let count = links.length;
+                $(div).parent().find('p').append(`<b>[${count}P]</b>`);
+                while (count++ < 2) {
+                    links.push("https://jsonp.gitee.io/video/img/404.png");
+                }
+                links.slice(0, 2).forEach((link, _index) => {
+                    const dom_id = `id_${index}_img_${_index}`;
+                    preLoadImg(dom_id, link);
+                });
             }
         });
     }
-    const lazyLoadDebounced = debounce(lazyLoad, 100);
+    const lazyLoadDebounced = debounce(lazyLoad, 60);
     window.addEventListener('scroll', lazyLoadDebounced);
 })();
