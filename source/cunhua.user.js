@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         cunhua
 // @namespace    https://cunhua.click/
-// @version      1.2
+// @version      2.0
 // @description  cunhua
 // @author       You
 // @require      https://cunhua.click/template/bygsjw_sj/image/jquery.min.js
@@ -68,6 +68,7 @@
     async function fetch_real_url(url) {
         const resp = await fetch(url);
         const html = await resp.text();
+        if(/<head>/.test(html)) return url;
         let [, jsStr] = /<script.*?>([\s\S]*?)<\/script>/gm.exec(html);
         const temp = `
         MuURL='';
@@ -101,8 +102,8 @@
             return matches.map((htmlString) => {
                 const regex = /<img.*?src=["'](.*?)["']/;
                 const [, src] = regex.exec(htmlString) ?? [];
-                const regex2 = /<img.*?zoomfile=["'](.*?)["']/ ?? [];
-                const [, zoomfile] = regex.exec(htmlString);
+                const regex2 = /<img.*?zoomfile=["'](.*?)["']/;
+                const [, zoomfile] = regex2.exec(htmlString)?? [];
                 return zoomfile ? zoomfile : src;
             });
         } else {
@@ -128,7 +129,7 @@
     }
 
     $('.threadlist li>a:first-child,#favorite_ul li>a[target="_blank"],#threadlist li.pbw h3>a,table[summary="主题付费"] tr td>a[target="_blank"]').each(async function (index, vo) {
-        let container = $(this).parent().append(`<div class="img-list" style="width: 100vw; height:200px;padding-top:10px;overflow-x: auto; overflow-y: hidden; white-space: nowrap;"></div>`);
+        let container = $(this).parent().append(`<div class="img-list" style="width: 100%; height:200px;padding-top:10px;overflow-x: auto; overflow-y: hidden; white-space: nowrap;"></div>`);
         const defaultImg = "https://jsonp.gitee.io/video/img/load.gif";
         let i = 0;
         while (i++ < 2) {
