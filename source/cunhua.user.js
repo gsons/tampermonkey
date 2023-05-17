@@ -9,7 +9,7 @@
 // @match        https://cunhua.click/*
 // @match        https://www.cunhua.click/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=cunhua.click
-// @grant       GM_xmlhttpRequest
+// @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
 (function () {
