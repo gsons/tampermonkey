@@ -1,16 +1,23 @@
 // ==UserScript==
-// @name         cpoloar
+// @name         cpoloar_server
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.5
 // @description  try to take over the world!
-// @author       You
-// @match       https://chat.openai.com/?service=*
+// @author       gsonhub
+// @match        https://jsonp.gitee.io/*
+// @match        https://chat.openai.com/?service=*
+// @connect      gitee.com
 // @connect      localhost
 // @connect      api.github.com
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=github.io
-// @grant       GM_xmlhttpRequest
-// ==/UserScript==
+// @grant        GM_xmlhttpRequest
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_notification
+// @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
 
+// ==/UserScript==
 (function () {
     'use strict';
 
@@ -36,14 +43,14 @@
                     reject(error);
                 },
             };
-            if (method.toUpperCase() === 'POST'||method.toUpperCase() === 'PUT') {
+            if (method.toUpperCase() === 'POST' || method.toUpperCase() === 'PUT') {
                 requestOptions.data = body;
             }
             GM_xmlhttpRequest(requestOptions);
         });
     }
 
-    async function getToken() {
+    async function get_token() {
         const response = await GM_fetch('http://localhost:9200/api/v1/user/login', {
             method: 'POST',
             headers: {
@@ -64,7 +71,7 @@
         }
     }
 
-    async function getlist(token) {
+    async function get_tunnels(token) {
         const response = await GM_fetch('http://localhost:9200/api/v1/tunnels', {
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -74,118 +81,177 @@
         const data = await response.json();
         const { code } = data;
         if (code === 20000) {
-            let res=data.data.items.map((v)=>{return {name:v.name,domain:v.public_url.replace('https://','')}});
-            let map={};
-            res.forEach((vv)=>{
-                map[vv.name]=vv.domain;
+            let res = data.data.items.map((v) => {
+                const _obj = { domain: v.public_url.replace('https://', '') };
+                return { ...v, ..._obj }
             });
-            return map['chatgpt-ws'];
+            return res;
         } else {
             throw new Error(`获取列表失败: ${JSON.stringify(data)}`);
         }
     }
 
-    async function main() {
-       // await update_file("cpolar.php","update cpolar.php");
-        //return;
-        let token = await getToken();
-        let list= await getlist(token);
-        update_file('domain.json',JSON.stringify({"domain":list}));
-        console.warn(new Date().toISOString(),'first token '+token,list);
-         let templist=list;
-        setInterval(async ()=>{
-            try {
-                templist = await getlist(token);
-            } catch (error) {
-                console.warn(new Date().toISOString(),'获取域名失败重新登录。。。');
-                token = await getToken();
-                console.warn(new Date().toISOString(),'new token '+token);
+    async function start_cpolar(token, vv) {
+        const url = `http://localhost:9200/api/v1/tunnels/${vv.id}/start`;
+        const response = await GM_fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             }
-            if(templist!=list){
-                console.warn(new Date().toISOString(),'更新域名',templist);
-                update_file('domain.json',JSON.stringify({"domain":templist}));
-            }
-            list=templist;
-            console.log(new Date().toISOString(),list);
-        },60000);
+        });
+        const data = await response.json();
+        const { code } = data;
+        if (code === 20000) {
+            return true;
+        } else {
+            throw new Error(`启动服务器失败: ${JSON.stringify(data)}`);
+        }
     }
 
-    async function update_file(file_path, new_file_content) {
+    function window_notice(title, text = '') {
+        GM_notification({
+            text: text,
+            title: "Cpolar plugin" + title
+        });
+    }
+
+    function debug_info(...info) {
+        console.log('Cpolar plugin: ', new Date().toLocaleString(), ...info);
+    }
+    function debug_error(...info) {
+        console.error('Cpolar plugin: ', new Date().toLocaleString(), ...info);
+    }
+    function debug_warn(...info) {
+        console.warn('Cpolar plugin: ', new Date().toLocaleString(), ...info);
+    }
+
+    async function check_tunnel_status(token, domain_list) {
+        domain_list.forEach(async vo => {
+            if (vo.status == 'inactive') {
+                try {
+                    await start_cpolar(token, vo);
+                    window_notice('Cpolar服务器', vo.domain + ' 启动成功');
+                } catch (error) {
+                    debug_error(error);
+                    window_notice('Cpolar服务器', vo.domain + ' 启动失败');
+                }
+            }
+        });
+    }
+
+    async function update_github(file, content) {
         const owner = "gsons";
         const repo = "gsons.github.io";
         const access_token = "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";
-
-        // Define the current URL of the file we want to update
-        const current_file_url = `https://api.github.com/repos/${owner}/${repo}/contents/${file_path}`;
-
-        try {
-          // Fetch the current file information
-          const response = await GM_fetch(current_file_url, {
+        let opt = {
             headers: {
-              'User-Agent': 'MyJSApp/1.0',
-                "referer":"api.github.com",
-              'Authorization': `token ${access_token}`
-            }
-          });
-
-          // Extract the current file data from the response
-          const current_file_data = await response.json();
-
-          console.log(new Date().toISOString(),current_file_data);
-          //return;
-
-          // Check if the request was successful and get the current file's SHA value
-          if (current_file_data.sha) {
-            const current_file_sha = current_file_data.sha;
-
-            // Define the URL for updating the file
-            const update_file_url = `https://api.github.com/repos/${owner}/${repo}/contents/${file_path}`;
-
-            // Define the new file content and encode it in base64
-            const new_file_content_base64 = btoa(new_file_content);
-
-            // Define the request body
-            const request_body = JSON.stringify({
-              message: `Update ${file_path}`,
-              content: new_file_content_base64,
-              sha: current_file_sha
-            });
-
-            // Set the Fetch options for the update request
-            const update_response = await GM_fetch(update_file_url, {
-              method: 'PUT',
-              headers: {
                 'User-Agent': 'MyJSApp/1.0',
-                 "referer":"api.github.com",
-                'Authorization': `token ${access_token}`,
-                //'Content-Type': 'application/json',
-                'Content-Length': request_body.length
-              },
-              body: request_body
-            });
-
-            const update_response_data = await update_response.json();
-
-            // Check if the request was successful
-            if (update_response_data.commit) {
-              console.log("File updated successfully!");
-            } else {
-              console.log("File update failed!");
-              console.log(update_response_data);
+                "referer": "api.github.com",
+                'Authorization': `token ${access_token}`
             }
-          } else {
-            console.log("Unable to get current file information!");
-          }
-        } catch (error) {
-          console.log(error);
+        };
+        const res = await GM_fetch(`ttps://api.github.com/repos/${owner}/${repo}/contents/${file}`, opt);
+        const { sha } = res.json();
+        if (!sha) {
+            debug_error("更新GITHUB失败 sha值为空无法更新:" + res.text());
+            return false;
         }
-      }
-
-
-    main()
-        .then()
-        .catch((e) => {
-            console.error(new Date().toISOString(),'主函数报错：',e);
+        const update_file_url = `https://api.github.com/repos/${owner}/${repo}/contents/${file}`;
+        const request_body = JSON.stringify({
+            message: `Update ${file}`,
+            content: btoa(new_file_content),
+            sha: sha
         });
+
+        const update_response = await GM_fetch(update_file_url, {
+            method: 'PUT',
+            headers: {
+                'User-Agent': 'MyJSApp/1.0',
+                "referer": "api.github.com",
+                'Authorization': `token ${access_token}`,
+                'Content-Length': request_body.length
+            },
+            body: request_body
+        });
+        const update_response_data = await update_response.json();
+        if (update_response_data.commit) {
+            debug_info("更新GITHUB成功", file, update_response.text());
+            return true;
+        } else {
+            debug_error("更新GITHUB失败", file, update_response.text());
+            return false;
+        }
+    }
+
+    async function update_gitee(file, content) {
+        const res = await GM_fetch(`https://gitee.com/api/v5/repos/jsonp/jsonp/contents/${file}`);
+        const { sha } = res.json();
+        if (!sha) {
+            debug_error("更新GITEE失败 Gitee sha值为空无法更新:" + res.text());
+            return false;
+        }
+        let data = new FormData();
+        data.append('access_token', "2b5be221688193bc31733c8f321b993c");
+        data.append('sha', sha);
+        data.append('content', btoa(content));
+        data.append('message', "update " + file);
+        const update_response = await GM_fetch(`https://gitee.com/api/v5/repos/jsonp/jsonp/contents/${file}`, { method: "PUT", body: data });
+        let { commit } = update_response.json();
+        if (commit) {
+            debug_info("更新GITEE成功", file, update_response.text());
+            return true;
+        } else {
+            debug_error("更新GITEE失败", file, update_response.text());
+            return false;
+        }
+    }
+
+    async function update_ws_domain(domain_list) {
+        const domain = get_ws_domain(domain_list);
+        const content = `get_domain('${domain}');`;
+        await update_gitee('get_domain.js', content);
+        window_notice('更新域名成功！', '');
+        return domain;
+    }
+
+    function get_ws_domain(domain_list) {
+        let map = {};
+        domain_list.forEach(async (vv) => {
+            map[vv.name] = vv.domain;
+        });
+        const domain = map['chatgpt-ws'];
+        return domain;
+    }
+
+    async function main() {
+        window_notice('启动', '启动中、、、');
+        debug_warn('Cpolar更新服务....');
+        let token = await get_token();
+        let domain_list = await get_tunnels(token);
+        await check_tunnel_status(token, domain_list);
+        debug_warn('first token ' + token, domain_list);
+        let old_domain = await update_ws_domain(domain_list);
+        setInterval(async () => {
+            try {
+                domain_list = await get_tunnels(token);
+            } catch (error) {
+                debug_error('获取域名失败正在重新登录。。。', error);
+                token = await get_token();
+                domain_list = await get_tunnels(token);
+            }
+            await check_tunnel_status(token, domain_list);
+            const new_domain = get_ws_domain(domain_list);
+            if (new_domain != old_domain) {
+                await update_ws_domain();
+            }
+            debug_info("获取到域名为", new_domain);
+            old_domain = new_domain;
+        }, 60000);
+    }
+
+    main().then().catch(err => {
+        debug_error(err);
+    })
 
 })();

@@ -8,13 +8,13 @@
 // @icon              data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
 // @connect           127.0.0.1
 // @connect           127.0.0.1:55151
-// @connect           chat.openai.com/
-// @grant               GM_setValue
-// @grant               GM_getValue
-// @grant               GM_notification
-// @grant               GM_registerMenuCommand
-// @grant               GM_unregisterMenuCommand
-// @grant               GM.xmlHttpRequest
+// @connect           chat.openai.com
+// @grant             GM_setValue
+// @grant             GM_getValue
+// @grant             GM_notification
+// @grant             GM_registerMenuCommand
+// @grant             GM_unregisterMenuCommand
+// @grant             GM.xmlHttpRequest
 
 // ==/UserScript==
 
@@ -22,16 +22,34 @@
     'use strict';
 
     async function getAccessToken() {
-        const resp = await fetch('https://chat.openai.com/api/auth/session')
-        if (resp.status === 403) {
-            throw new Error('CLOUDFLARE')
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(),1500); // 设置超时时间为2秒
+        try {
+            const resp = await fetch('https://chat.openai.com/api/auth/session', { signal: controller.signal });
+            clearTimeout(timeout);
+
+            if (resp.status === 403) {
+                throw new Error('CLOUDFLARE');
+            }
+
+            const data = await resp.json();
+            if (!data.accessToken) {
+                throw new Error('UNAUTHORIZED');
+            }
+
+            return data.accessToken;
+        } catch (error) {
+            clearTimeout(timeout);
+
+            GM_notification({
+                text: error,
+                title: "ChatGPT 读取token服务异常!"
+            });
+
+            throw new Error('读取token服务异常,' + error);
         }
-        const data = await resp.json();
-        if (!data.accessToken) {
-            throw new Error('UNAUTHORIZED')
-        }
-        return data.accessToken
     }
+
 
     function uuidv4() {
         var d = new Date().getTime()
@@ -60,12 +78,14 @@
         }
         console.log(pdata);
 
-        GM.xmlHttpRequest({
+        let is_time_out = true;
+        let req = GM.xmlHttpRequest({
             method: 'POST', url: 'https://chat.openai.com/backend-api/conversation',
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + accessToken },
             responseType: 'stream',
             data: JSON.stringify(pdata),
             onloadstart: function (stream) {
+                is_time_out = false;
                 var reader = stream.response.getReader()
                 reader.read().then(function processText({ done, value }) {
                     if (done) {
@@ -94,7 +114,6 @@
                     if (!last1) {
                         callback({ 'status': 'error', 'data': responseItem });
                         return;
-                        // throw new Error(responseItem);
                     }
 
                     if (!last1.includes('data: [DONE]')) {
@@ -119,12 +138,28 @@
                 })
             },
             ontimeout: function (e) {
-                throw new Error("generateAnswer error: ontimeout");
+                const msg = "generateAnswer error ontimeout:" + e;
+                callback({ 'status': 'error', 'data': msg });
+                //throw new Error(msg);
             },
             onerror: function (error) {
-                throw new Error("generateAnswer error: " + error);
+                const msg = "generateAnswer error: " + error;
+                callback({ 'status': 'error', 'data': msg });
+                //throw new Error(msg);
             }
-        })
+        });
+
+        setTimeout(() => {
+            if (is_time_out) {
+                req.abort();
+                const msg = "generateAnswer error ontimeout";
+                GM_notification({
+                    text: msg,
+                    title: "ChatGPT服务异常!"
+                });
+                callback({ 'status': 'error', 'data': msg });
+            }
+        }, 3500);
     }
 
     class ChatWebSocket {
@@ -185,9 +220,13 @@
     }
 
     async function main() {
+        GM_notification({
+            text: "正在启动。。。",
+            title: "ChatGPT"
+        });
         var ws = new ChatWebSocket();
         ws.connect();
     }
 
-    main().then();
+    main().then().catch((err) => { console.error('主线程错误：', err) });
 })();
