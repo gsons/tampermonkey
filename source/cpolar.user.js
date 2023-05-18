@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         cpoloar_server
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.7
 // @description  try to take over the world!
 // @author       gsonhub
-// @match        https://jsonp.gitee.io/*
+// @match        -https://jsonp.gitee.io/*
 // @match        https://chat.openai.com/?service=*
 // @connect      gitee.com
 // @connect      localhost
@@ -85,7 +85,7 @@
                 const _obj = { domain: v.public_url.replace('https://', '') };
                 return { ...v, ..._obj }
             });
-            return res;
+            return res.filter((vo)=>{return vo.name!='remoteDesktop'});
         } else {
             throw new Error(`获取列表失败: ${JSON.stringify(data)}`);
         }
@@ -109,7 +109,7 @@
         }
     }
 
-    function window_notice(title, text = '') {
+    function window_notice(title, text = '...') {
         GM_notification({
             text: text,
             title: "Cpolar plugin" + title
@@ -127,8 +127,9 @@
     }
 
     async function check_tunnel_status(token, domain_list) {
+        debug_info('检验cpplar', domain_list);
         domain_list.forEach(async vo => {
-            if (vo.status == 'inactive') {
+            if (vo.status != 'active') {
                 try {
                     await start_cpolar(token, vo);
                     window_notice('Cpolar服务器', vo.domain + ' 启动成功');
@@ -136,14 +137,16 @@
                     debug_error(error);
                     window_notice('Cpolar服务器', vo.domain + ' 启动失败');
                 }
+            } else {
+                //debug_info(vo.name, vo.domain, vo.status);
             }
         });
     }
 
-    async function update_github(file, content) {
+    async function update_github(file, new_file_content) {
         const owner = "gsons";
         const repo = "gsons.github.io";
-        const access_token = "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";
+        const access_token = "";
         let opt = {
             headers: {
                 'User-Agent': 'MyJSApp/1.0',
@@ -151,7 +154,7 @@
                 'Authorization': `token ${access_token}`
             }
         };
-        const res = await GM_fetch(`ttps://api.github.com/repos/${owner}/${repo}/contents/${file}`, opt);
+        const res = await GM_fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${file}`, opt);
         const { sha } = res.json();
         if (!sha) {
             debug_error("更新GITHUB失败 sha值为空无法更新:" + res.text());
@@ -163,8 +166,7 @@
             content: btoa(new_file_content),
             sha: sha
         });
-
-        const update_response = await GM_fetch(update_file_url, {
+        const option = {
             method: 'PUT',
             headers: {
                 'User-Agent': 'MyJSApp/1.0',
@@ -173,10 +175,12 @@
                 'Content-Length': request_body.length
             },
             body: request_body
-        });
+        };
+        //debug_info('github option', option);
+        const update_response = await GM_fetch(update_file_url, option);
         const update_response_data = await update_response.json();
         if (update_response_data.commit) {
-            debug_info("更新GITHUB成功", file, update_response.text());
+            debug_info("更新GITHUB成功", file);
             return true;
         } else {
             debug_error("更新GITHUB失败", file, update_response.text());
@@ -199,7 +203,7 @@
         const update_response = await GM_fetch(`https://gitee.com/api/v5/repos/jsonp/jsonp/contents/${file}`, { method: "PUT", body: data });
         let { commit } = update_response.json();
         if (commit) {
-            debug_info("更新GITEE成功", file, update_response.text());
+            debug_info("更新GITEE成功", file);
             return true;
         } else {
             debug_error("更新GITEE失败", file, update_response.text());
@@ -211,7 +215,8 @@
         const domain = get_ws_domain(domain_list);
         const content = `get_domain('${domain}');`;
         await update_gitee('get_domain.js', content);
-        window_notice('更新域名成功！', '');
+        await update_github('get_domain.js', content);
+        debug_warn('更新域名成功！');
         return domain;
     }
 
@@ -225,13 +230,12 @@
     }
 
     async function main() {
-        window_notice('启动', '启动中、、、');
         debug_warn('Cpolar更新服务....');
         let token = await get_token();
         let domain_list = await get_tunnels(token);
         await check_tunnel_status(token, domain_list);
-        debug_warn('first token ' + token, domain_list);
-        let old_domain = await update_ws_domain(domain_list);
+        debug_info('first token ' + token, 'domain_list', domain_list);
+        let old_domain = await update_ws_domain(domain_list).catch((err => { debug_error('更新域名错误', err); }));
         setInterval(async () => {
             try {
                 domain_list = await get_tunnels(token);
@@ -251,7 +255,7 @@
     }
 
     main().then().catch(err => {
-        debug_error(err);
+        debug_error('主线程错误', err);
     })
 
 })();
