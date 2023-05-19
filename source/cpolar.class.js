@@ -376,12 +376,12 @@
             }, 60000);
         }
 
-        static async updateWsFile(domain) {
-            const content = `get_domain('${domain}');`;
-            //let res = await Gitee.updateFile('domain.js', content);
-            //Log.info('更新gitee域名成功', res);
-            let res = await Github.updateFile('domain.js', content);
-            Log.info('更新Github域名成功', res);
+        static async updateWsFile(domain_list) {
+            const content = `get_domain_list(${domain_list});`;
+            let res1 = await Gitee.updateFile('get_domain_list.js', content);
+            Log.info('更新gitee域名成功', content, res1);
+            let res2 = await Github.updateFile('get_domain_list.js', content);
+            Log.info('更新Github域名成功', content, res2);
         }
 
         static async run() {
@@ -394,21 +394,17 @@
             App.cpolar(option1, async (domain) => {
                 domain1 = domain;
                 if (domain1 && domain2) {
-                    const json = { domain: [domain2, domain1, domain0] }
+                    const json =[domain2, domain1, domain0];
                     Log.info('更新域名1', json);
                     App.updateWsFile(JSON.stringify(json)).then().catch(err => { Log.error(err) });
-                    const res=await Gitee.updateFile('get_domain.js', `get_domain('${domain}');`);
-                    Log.info('更新gitee域名成功', res);
                 }
             });
             App.cpolar(option2, async (domain) => {
                 domain2 = domain;
                 if (domain1 && domain2) {
-                    const json = { domain: [domain2, domain1, domain0] }
+                    const json =[domain2, domain1, domain0];
                     Log.info('更新域名2', json);
                     App.updateWsFile(JSON.stringify(json)).then().catch(err => { Log.error(err) });
-                    const res=await Gitee.updateFile('get_domain.js', `get_domain('${domain}');`);
-                    Log.info('更新gitee域名成功', res);
                 }
             });
         }
