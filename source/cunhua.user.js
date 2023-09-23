@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         cunhua
-// @namespace    https://cunhua.click/
-// @version      2.0
-// @description  cunhua
+// @namespace    cunhua
+// @version      2.1
+// @description  解决村花论坛收藏与搜索没有图片预览的问题
 // @author       You
-// @require      https://cunhua.click/template/bygsjw_sj/image/jquery.min.js
-// @connect      cunhua.click
-// @match        https://cunhua.click/*
-// @match        https://www.cunhua.click/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=cunhua.click
+// @require      https://cdn.bootcss.com/jquery/1.8.3/jquery.min.js
+// @connect      *
+// @include      /^https:\/\/(www\.|)cunhua/
+// @match        https://cunhua.*/*
+// @match        https://www.cunhua.*/*
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
