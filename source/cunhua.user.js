@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         cunhua
 // @namespace    cunhua
-// @version      2.1
+// @version      2.3
 // @description  解决村花论坛收藏与搜索没有图片预览的问题
-// @author       You
+// @author       cunhua
 // @require      https://cdn.bootcss.com/jquery/1.8.3/jquery.min.js
 // @connect      *
 // @include      /^https:\/\/(www\.|)cunhua/
@@ -124,13 +124,13 @@
             document.getElementById(id).src = url;
         };
         img.onerror = function () {
-            document.getElementById(id).src = "https://jsonp.gitee.io/video/img/404.png";
+            document.getElementById(id).src = "https://cosmic-dieffenbachia-e06779.netlify.app/img/404.png";
         }
     }
 
     $('.threadlist li>a:first-child,#favorite_ul li>a[target="_blank"],#threadlist li.pbw h3>a,table[summary="主题付费"] tr td>a[target="_blank"]').each(async function (index, vo) {
         let container = $(this).parent().append(`<div class="img-list" style="width: 100%; height:200px;padding-top:10px;overflow-x: auto; overflow-y: hidden; white-space: nowrap;"></div>`);
-        const defaultImg = "https://jsonp.gitee.io/video/img/load.gif";
+        const defaultImg = "https://cosmic-dieffenbachia-e06779.netlify.app/img/load.gif";
         let i = 0;
         while (i++ < 2) {
             container.find(".img-list").append(`<img src="${defaultImg}" id="id_${index}_img_${i - 1}" style="height: 200px; display: inline-block;padding:0 5px"/>`);
@@ -167,7 +167,7 @@
                 let count = links.length;
                 $(div).parent().find('p').append(`<b>[${count}P]</b>`);
                 while (count++ < 2) {
-                    links.push("https://jsonp.gitee.io/video/img/404.png");
+                    links.push("https://cosmic-dieffenbachia-e06779.netlify.app/img/404.png");
                 }
                 links.slice(0, 2).forEach((link, _index) => {
                     const dom_id = `id_${index}_img_${_index}`;
