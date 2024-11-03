@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         caoliu
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.8
 // @description  caoliu site:ca.ipfs.eu.org  https://cc.9385x.xyz/
-// @require      https://cdn.bootcss.com/jquery/1.8.3/jquery.min.js
+// @require      https://code.jquery.com/jquery-1.8.3.min.js
 // @author       gsons
 // @match        https://*/thread0806.php?fid=*
 // @homepageURL  https://cc.9385x.xyz/
