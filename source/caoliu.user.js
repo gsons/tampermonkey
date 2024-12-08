@@ -144,7 +144,7 @@
     });
 
 
-    $('.list.t_one.tac_title a').each(async function (index, vo) {
+    $('.list.t_one a').each(async function (index, vo) {
       _count = 2;
       let container = $(this).parent().append(`<div class="img-list" style="width: 100%; height:250px;padding-top:10px;overflow-x: auto; overflow-y: hidden; white-space: nowrap;"></div>`);
       const defaultImg = "https://cosmic-dieffenbachia-e06779.netlify.app/img/load.gif";
