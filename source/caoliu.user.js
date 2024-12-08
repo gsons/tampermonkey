@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         caoliu
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  caoliu site:ca.ipfs.eu.org  https://cc.9385x.xyz/
 // @require      https://code.jquery.com/jquery-1.8.3.min.js
 // @author       gsons
